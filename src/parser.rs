@@ -49,6 +49,8 @@ pub enum Event {
     /// Anchor ID
     MappingStart(usize),
     MappingEnd,
+
+    Line(String),
 }
 
 impl Event {
@@ -166,7 +168,7 @@ impl<T: Iterator<Item = char>> Parser<T> {
             return Ok((Event::StreamEnd, self.scanner.mark()));
         }
         let (ev, mark) = self.state_machine()?;
-        // println!("EV {:?}", ev);
+        println!("EV {:?}", ev);
         Ok((ev, mark))
     }
 

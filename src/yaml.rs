@@ -77,8 +77,11 @@ pub struct YamlLoader {
 
 impl MarkedEventReceiver for YamlLoader {
     fn on_event(&mut self, ev: Event, _: Marker) {
-        // println!("EV {:?}", ev);
+        println!("EV {:?}", ev);
         match ev {
+            Event::Line(content) => {
+                self.insert_new_node((Yaml::String(content), 0))
+            }
             Event::DocumentStart => {
                 // do nothing
             }
