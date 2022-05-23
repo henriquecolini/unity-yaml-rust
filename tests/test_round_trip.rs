@@ -1,6 +1,5 @@
-extern crate yaml_rust;
 
-use yaml_rust::{Yaml, YamlEmitter, YamlLoader};
+use unity_yaml_rust::{Yaml, YamlEmitter, YamlLoader};
 
 fn roundtrip(original: &Yaml) {
     let mut emitted = String::new();
@@ -14,7 +13,7 @@ fn roundtrip(original: &Yaml) {
 }
 
 fn double_roundtrip(original: &str) {
-    let parsed = YamlLoader::load_from_str(&original).unwrap();
+    let parsed = YamlLoader::load_from_str(original).unwrap();
 
     let mut serialized = String::new();
     YamlEmitter::new(&mut serialized).dump(&parsed[0]).unwrap();
@@ -46,7 +45,7 @@ fn test_numberlike_strings() {
 
     for doc in &docs {
         roundtrip(&Yaml::String(doc.to_string()));
-        double_roundtrip(&doc);
+        double_roundtrip(doc);
     }
 }
 
