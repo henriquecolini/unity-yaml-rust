@@ -210,10 +210,7 @@ impl<'a> YamlEmitter<'a> {
         } else {
             self.level += 1;
             for (cnt, (k, v)) in h.iter().enumerate() {
-                let complex_key = match *k {
-                    Yaml::Hash(_) | Yaml::Array(_) => true,
-                    _ => false,
-                };
+                let complex_key = matches!(*k, Yaml::Hash(_) | Yaml::Array(_));
                 if cnt > 0 {
                     writeln!(self.writer)?;
                     self.write_indent()?;
@@ -291,14 +288,10 @@ fn need_quotes(string: &str) -> bool {
         string.starts_with(' ') || string.ends_with(' ')
     }
 
-    string == ""
+    string.is_empty()
         || need_quotes_spaces(string)
-        || string.starts_with(|character: char| match character {
-            '&' | '*' | '?' | '|' | '-' | '<' | '>' | '=' | '!' | '%' | '@' => true,
-            _ => false,
-        })
-        || string.contains(|character: char| match character {
-            ':'
+        || string.starts_with(|character: char| matches!(character, '&' | '*' | '?' | '|' | '-' | '<' | '>' | '=' | '!' | '%' | '@'))
+        || string.contains(|character: char| matches!(character, ':'
             | '{'
             | '}'
             | '['
@@ -314,9 +307,7 @@ fn need_quotes(string: &str) -> bool {
             | '\n'
             | '\r'
             | '\x0e'..='\x1a'
-            | '\x1c'..='\x1f' => true,
-            _ => false,
-        })
+            | '\x1c'..='\x1f'))
         || [
             // http://yaml.org/type/bool.html
             // Note: 'y', 'Y', 'n', 'N', is not quoted deliberately, as in libyaml. PyYAML also parse
@@ -354,7 +345,7 @@ a4:
     - 2
 ";
 
-        let docs = YamlLoader::load_from_str(&s).unwrap();
+        let docs = YamlLoader::load_from_str(s).unwrap();
         let doc = &docs[0];
         let mut writer = String::new();
         {
@@ -365,7 +356,7 @@ a4:
         println!("emitted:\n{}", writer);
         let docs_new = match YamlLoader::load_from_str(&writer) {
             Ok(y) => y,
-            Err(e) => panic!(format!("{}", e)),
+            Err(e) => panic!("{}", e),
         };
         let doc_new = &docs_new[0];
 
@@ -393,7 +384,7 @@ products:
   {}:
     empty hash key
             "#;
-        let docs = YamlLoader::load_from_str(&s).unwrap();
+        let docs = YamlLoader::load_from_str(s).unwrap();
         let doc = &docs[0];
         let mut writer = String::new();
         {
@@ -402,7 +393,7 @@ products:
         }
         let docs_new = match YamlLoader::load_from_str(&writer) {
             Ok(y) => y,
-            Err(e) => panic!(format!("{}", e)),
+            Err(e) => panic!("{}", e),
         };
         let doc_new = &docs_new[0];
         assert_eq!(doc, doc_new);
@@ -444,7 +435,7 @@ x: test
 y: avoid quoting here
 z: string with spaces"#;
 
-        let docs = YamlLoader::load_from_str(&s).unwrap();
+        let docs = YamlLoader::load_from_str(s).unwrap();
         let doc = &docs[0];
         let mut writer = String::new();
         {
@@ -502,7 +493,7 @@ null0: ~
 bool0: true
 bool1: false"#;
 
-        let docs = YamlLoader::load_from_str(&input).unwrap();
+        let docs = YamlLoader::load_from_str(input).unwrap();
         let doc = &docs[0];
         let mut writer = String::new();
         {
@@ -551,7 +542,7 @@ e:
     h: []"#
         };
 
-        let docs = YamlLoader::load_from_str(&s).unwrap();
+        let docs = YamlLoader::load_from_str(s).unwrap();
         let doc = &docs[0];
         let mut writer = String::new();
         {
@@ -573,7 +564,7 @@ a:
     - - e
       - f"#;
 
-        let docs = YamlLoader::load_from_str(&s).unwrap();
+        let docs = YamlLoader::load_from_str(s).unwrap();
         let doc = &docs[0];
         let mut writer = String::new();
         {
@@ -597,7 +588,7 @@ a:
       - - f
       - - e"#;
 
-        let docs = YamlLoader::load_from_str(&s).unwrap();
+        let docs = YamlLoader::load_from_str(s).unwrap();
         let doc = &docs[0];
         let mut writer = String::new();
         {
@@ -619,7 +610,7 @@ a:
       d:
         e: f"#;
 
-        let docs = YamlLoader::load_from_str(&s).unwrap();
+        let docs = YamlLoader::load_from_str(s).unwrap();
         let doc = &docs[0];
         let mut writer = String::new();
         {

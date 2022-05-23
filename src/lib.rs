@@ -15,16 +15,13 @@
 //!
 //! And this in your crate root:
 //!
-//! ```rust
-//! extern crate yaml_rust;
-//! ```
 //!
 //! Parse a string into `Vec<Yaml>` and then serialize it as a YAML string.
 //!
 //! # Examples
 //!
 //! ```
-//! use yaml_rust::{YamlLoader, YamlEmitter};
+//! use unity_yaml_rust::{YamlLoader, YamlEmitter};
 //!
 //! let docs = YamlLoader::load_from_str("[1, 2, 3]").unwrap();
 //! let doc = &docs[0]; // select the first document
@@ -38,13 +35,11 @@
 
 #![doc(html_root_url = "https://docs.rs/yaml-rust/0.4.5")]
 #![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
-#![cfg_attr(feature = "cargo-clippy", warn(cyclomatic_complexity))]
 #![cfg_attr(
     feature = "cargo-clippy",
     allow(match_same_arms, should_implement_trait)
 )]
 
-extern crate linked_hash_map;
 
 pub mod emitter;
 pub mod parser;

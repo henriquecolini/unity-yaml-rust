@@ -1,4 +1,4 @@
-# yaml-rust
+# unity-yaml-rust
 
 The missing YAML 1.2 implementation for Rust.
 
@@ -7,7 +7,7 @@ The missing YAML 1.2 implementation for Rust.
 [![crates.io](https://img.shields.io/crates/v/yaml-rust.svg)](https://crates.io/crates/yaml-rust)
 [![docs.rs](https://img.shields.io/badge/api-rustdoc-blue.svg)](https://docs.rs/yaml-rust)
 
-`yaml-rust` is a pure Rust YAML 1.2 implementation,
+`unity-yaml-rust` is a pure Rust YAML 1.2 implementation for Unity,
 which enjoys the memory safety
 property and other benefits from the Rust language.
 The parser is heavily influenced by `libyaml` and `yaml-cpp`.
@@ -21,17 +21,10 @@ Add the following to the Cargo.toml of your project:
 yaml-rust = "0.4"
 ```
 
-and import:
-
-```rust
-extern crate yaml_rust;
-```
-
 Use `yaml::YamlLoader` to load the YAML documents and access it
 as Vec/HashMap:
 
 ```rust
-extern crate yaml_rust;
 use yaml_rust::{YamlLoader, YamlEmitter};
 
 fn main() {
