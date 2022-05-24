@@ -36,6 +36,7 @@ pub struct YamlEmitter<'a> {
     compact: bool,
 
     level: isize,
+    written: bool,
 }
 
 pub type EmitResult = Result<(), EmitError>;
@@ -110,6 +111,7 @@ impl<'a> YamlEmitter<'a> {
             best_indent: 2,
             compact: true,
             level: -1,
+            written: false,
         }
     }
 
@@ -133,8 +135,13 @@ impl<'a> YamlEmitter<'a> {
     pub fn dump(&mut self, doc: &Yaml) -> EmitResult {
         // write DocumentStart
         // writeln!(self.writer, "---")?;
+        if self.written {
+            writeln!(self.writer)?;
+        }
         self.level = -1;
-        self.emit_node(doc)
+        self.emit_node(doc)?;
+        self.written = true;
+        Ok(())
     }
 
     fn write_indent(&mut self) -> EmitResult {
@@ -182,7 +189,7 @@ impl<'a> YamlEmitter<'a> {
                 Ok(())
             }
             Yaml::Original(ref v) => {
-                writeln!(self.writer, "{}", v)?;
+                write!(self.writer, "{}", v)?;
                 Ok(())
             }
             // XXX(chenyh) Alias
@@ -216,8 +223,12 @@ impl<'a> YamlEmitter<'a> {
             for (cnt, (k, v)) in h.iter().enumerate() {
                 let complex_key = matches!(*k, Yaml::Hash(_) | Yaml::Array(_));
                 if cnt > 0 {
-                    writeln!(self.writer)?;
-                    self.write_indent()?;
+                    if h.block {
+                        writeln!(self.writer)?;
+                        self.write_indent()?;
+                    } else {
+                        write!(self.writer, ", ")?;
+                    } 
                 }
                 if complex_key {
                     write!(self.writer, "?")?;
@@ -229,6 +240,8 @@ impl<'a> YamlEmitter<'a> {
                 } else {
                     self.emit_node(k)?;
                     write!(self.writer, ":")?;
+                    // let inline = h.block && matches!(*k, Yaml::Hash(_));
+                    // write!(self.writer, "{}", inline)?;
                     self.emit_val(false, v)?;
                 }
             }
@@ -241,7 +254,7 @@ impl<'a> YamlEmitter<'a> {
     /// following a ":" or "-", either after a space, or on a new line.
     /// If `inline` is true, then the preceding characters are distinct
     /// and short enough to respect the compact flag.
-    fn emit_val(&mut self, inline: bool, val: &Yaml) -> EmitResult {
+    fn emit_val(&mut self, mut inline: bool, val: &Yaml) -> EmitResult {
         match *val {
             Yaml::Array(ref v) => {
                 if (inline && self.compact) || v.is_empty() {
@@ -255,6 +268,7 @@ impl<'a> YamlEmitter<'a> {
                 self.emit_array(v)
             }
             Yaml::Hash(ref h) => {
+                inline = !h.block;
                 if (inline && self.compact) || h.is_empty() {
                     write!(self.writer, " ")?;
                 } else {
@@ -263,7 +277,14 @@ impl<'a> YamlEmitter<'a> {
                     self.write_indent()?;
                     self.level -= 1;
                 }
-                self.emit_hash(h)
+                if !h.block {
+                    write!(self.writer, "{{")?;
+                }
+                self.emit_hash(h)?;
+                if !h.block {
+                    write!(self.writer, "}}")?;
+                }
+                Ok(())
             }
             _ => {
                 write!(self.writer, " ")?;

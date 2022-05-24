@@ -41,7 +41,7 @@ pub enum Yaml {
     /// YAML hash, can be accessed as a `LinkedHashMap`.
     ///
     /// Insertion order will match the order of insertion into the map.
-    Hash((self::Hash, bool)),
+    Hash(self::Hash),
     /// Alias, not fully supported yet.
     Alias(usize),
     /// YAML null, e.g. `null` or `~`.
@@ -56,7 +56,42 @@ pub enum Yaml {
 }
 
 pub type Array = Vec<Yaml>;
-pub type Hash = LinkedHashMap<Yaml, Yaml>;
+// pub type Hash = LinkedHashMap<Yaml, Yaml>;
+
+#[derive(Clone, PartialEq, PartialOrd, Debug, Eq, Ord, Hash)]
+pub struct Hash {
+    pub map: LinkedHashMap<Yaml, Yaml>,
+    pub block: bool
+}
+
+impl Hash {
+    pub fn new(block: bool) -> Self {
+        Hash { map: LinkedHashMap::new(), block }
+    }
+
+    pub fn into_iter(self) -> linked_hash_map::IntoIter<Yaml, Yaml> {
+        self.map.into_iter()
+    }
+
+    pub fn insert(&mut self, k: Yaml, v: Yaml) -> Option<Yaml> {
+        self.map.insert(k, v)
+    }
+
+    pub fn get(&self, k: &Yaml) -> Option<&Yaml> {
+        self.map.get(k)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.map.is_empty()
+    }
+
+    pub fn iter(&self) -> linked_hash_map::Iter<Yaml, Yaml> {
+        self.map.iter()
+    }
+
+}
+
+
 
 // parse f64 as Core schema
 // See: https://github.com/chyh1990/yaml-rust/issues/51
@@ -105,7 +140,7 @@ impl MarkedEventReceiver for YamlLoader {
                 self.insert_new_node(node);
             }
             Event::MappingStart(aid, block) => {
-                self.doc_stack.push((Yaml::Hash((Hash::new())), aid));
+                self.doc_stack.push((Yaml::Hash(Hash::new(block)), aid));
                 self.key_stack.push(Yaml::BadValue);
             }
             Event::MappingEnd => {

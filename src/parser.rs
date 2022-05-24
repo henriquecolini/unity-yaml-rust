@@ -4,7 +4,6 @@ use std::collections::HashMap;
 #[derive(Clone, Copy, PartialEq, Debug, Eq)]
 enum State {
     StreamStart,
-    Directive,
     ImplicitDocumentStart,
     DocumentStart,
     DocumentContent,
@@ -293,7 +292,6 @@ impl<T: Iterator<Item = char>> Parser<T> {
         // println!("cur_state {:?}, next tok: {:?}", self.state, next_tok);
         match self.state {
             State::StreamStart => self.stream_start(),
-            State::Directive => self.directive(),
             State::ImplicitDocumentStart => self.document_start(true),
             State::DocumentStart => self.document_start(false),
             State::DocumentContent => self.document_content(),
@@ -368,32 +366,6 @@ impl<T: Iterator<Item = char>> Parser<T> {
             _ => {
                 // explicit document
                 self._explicit_document_start()
-            }
-        }
-    }
-
-    fn directive(&mut self) -> ParseResult {
-        match *self.peek_token()? {
-            Token(mark, TokenType::VersionDirective(major, minor)) => {
-                self.skip();
-                Ok((Event::Line(format!("%YAML {}.{}", major, minor)), mark))
-            }
-            Token(mark, TokenType::TagDirective(ref handle, ref prefix)) => {
-                let tag = format!("%TAG {} {}", handle, prefix);
-                self.skip();
-                Ok((Event::Line(tag), mark))
-            }
-            Token(mark, TokenType::DocumentStart(cid, oid)) => {
-                // explicit document
-                println!("tt:{:?}, {:?}", cid, oid);
-                self.state = State::ImplicitDocumentStart;
-                self.skip();
-                Ok((Event::DocumentStart(cid, oid), mark))
-            },
-            Token(mark, _) => {
-                self.state = State::ImplicitDocumentStart;
-                self.skip();
-                Ok((Event::StreamStart, mark))
             }
         }
     }

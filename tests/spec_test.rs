@@ -26,7 +26,7 @@ struct YamlChecker {
 impl EventReceiver for YamlChecker {
     fn on_event(&mut self, ev: Event) {
         let tev = match ev {
-            Event::DocumentStart => TestEvent::OnDocumentStart,
+            Event::DocumentStart(..) => TestEvent::OnDocumentStart,
             Event::DocumentEnd => TestEvent::OnDocumentEnd,
             Event::SequenceStart(..) => TestEvent::OnSequenceStart,
             Event::SequenceEnd => TestEvent::OnSequenceEnd,
@@ -86,7 +86,7 @@ fn test_mapvec_legal() {
     key.push(Yaml::Integer(2));
     key.push(Yaml::Integer(3));
 
-    let mut keyhash = Hash::new();
+    let mut keyhash = Hash::new(false);
     keyhash.insert(Yaml::String("key".into()), Yaml::Array(key));
 
     let mut val = Array::new();
@@ -94,7 +94,7 @@ fn test_mapvec_legal() {
     val.push(Yaml::Integer(5));
     val.push(Yaml::Integer(6));
 
-    let mut hash = Hash::new();
+    let mut hash = Hash::new(false);
     hash.insert(Yaml::Hash(keyhash), Yaml::Array(val));
 
     let mut out_str = String::new();
