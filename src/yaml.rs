@@ -80,10 +80,11 @@ impl MarkedEventReceiver for YamlLoader {
         println!("EV {:?}", ev);
         match ev {
             Event::Line(content) => {
-                self.insert_new_node((Yaml::String(content), 0))
+                self.docs.push(Yaml::String(content))
             }
-            Event::DocumentStart => {
+            Event::DocumentStart(cid, oid) => {
                 // do nothing
+                self.docs.push(Yaml::String(format!("--- !u!{} &{}", cid, oid)))
             }
             Event::DocumentEnd => {
                 match self.doc_stack.len() {

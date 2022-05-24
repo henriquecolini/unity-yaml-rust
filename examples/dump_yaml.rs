@@ -33,6 +33,7 @@ fn dump_node(doc: &yaml::Yaml, indent: usize) {
 
 fn main() {
     let args: Vec<_> = env::args().collect();
+    println!("args:{:?}", args);
     let mut f = File::open(&args[1]).unwrap();
     let mut s = String::new();
     f.read_to_string(&mut s).unwrap();

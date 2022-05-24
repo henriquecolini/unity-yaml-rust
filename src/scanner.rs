@@ -94,7 +94,7 @@ pub enum TokenType {
     VersionDirective(u32, u32),
     /// handle, prefix
     TagDirective(String, String),
-    DocumentStart,
+    DocumentStart(u64, u64),
     DocumentEnd,
     BlockSequenceStart,
     BlockMappingStart,
@@ -363,7 +363,8 @@ impl<T: Iterator<Item = char>> Scanner<T> {
             && self.buffer[2] == '-'
             && is_blankz(self.buffer[3])
         {
-            self.fetch_document_indicator(TokenType::DocumentStart)?;
+            
+            self.fetch_document_start()?;
             return Ok(());
         }
 
@@ -1050,6 +1051,78 @@ impl<T: Iterator<Item = char>> Scanner<T> {
         self.skip();
 
         self.tokens.push_back(Token(mark, t));
+        Ok(())
+    }
+
+    fn fetch_document_start(&mut self) -> ScanResult {
+        self.unroll_indent(-1);
+        self.remove_simple_key()?;
+        self.disallow_simple_key();
+
+        let mark = self.mark;
+
+        self.skip();
+        self.skip();
+        self.skip();
+        self.skip();
+
+        self.lookahead(1);
+        if self.ch() != '!' {
+            return Err(ScanError::new(
+                mark,
+                "while scanning a tag, did not find expected '!'",
+            ));
+        }
+        // string.push(self.ch());
+        self.skip();
+
+        self.lookahead(1);
+        while is_alpha(self.ch()) {
+            // string.push(self.ch());
+            self.skip();
+            self.lookahead(1);
+        }
+        if self.ch() != '!' {
+            return Err(ScanError::new(
+                mark,
+                "while scanning a tag, did not find expected '!'",
+            ));
+        }
+        self.skip();
+        let mut class_id = 0u64;
+        self.lookahead(1);
+        while is_digit(self.ch()) {
+            class_id = class_id * 10 + (self.ch() as usize - '0' as usize) as u64;
+            self.skip();
+            self.lookahead(1);
+        }
+        while is_blank(self.ch()) {
+            self.skip();
+            self.lookahead(1);
+        }
+        if self.ch() != '&' {
+            return Err(ScanError::new(
+                mark,
+                "while scanning a tag, did not find expected '&'",
+            ));
+        }
+        self.skip();
+        self.lookahead(1);
+
+        let mut object_id = 0u64;
+        while is_digit(self.ch()) {
+            object_id = object_id * 10 + (self.ch() as usize - '0' as usize) as u64;
+            self.skip();
+            self.lookahead(1);
+        }
+        while is_blank(self.ch()) {
+            self.skip();
+            self.lookahead(1);
+        }
+        self.skip_line();
+
+
+        self.tokens.push_back(Token(mark, TokenType::DocumentStart(class_id, object_id)));
         Ok(())
     }
 
@@ -1789,7 +1862,7 @@ mod test {
 ";
         let mut p = Scanner::new(s.chars());
         next!(p, StreamStart(..));
-        next!(p, DocumentStart);
+        next!(p, DocumentStart(..));
         next!(p, Scalar(TScalarStyle::SingleQuoted, _));
         next!(p, DocumentEnd);
         next!(p, StreamEnd);
@@ -1808,9 +1881,9 @@ mod test {
         let mut p = Scanner::new(s.chars());
         next!(p, StreamStart(..));
         next!(p, Scalar(TScalarStyle::SingleQuoted, _));
-        next!(p, DocumentStart);
+        next!(p, DocumentStart(..));
         next!(p, Scalar(TScalarStyle::SingleQuoted, _));
-        next!(p, DocumentStart);
+        next!(p, DocumentStart(..));
         next!(p, Scalar(TScalarStyle::SingleQuoted, _));
         next!(p, StreamEnd);
         end!(p);
@@ -2149,7 +2222,7 @@ key:
         let s = "---\r\n- tok1\r\n- tok2";
         let mut p = Scanner::new(s.chars());
         next!(p, StreamStart(..));
-        next!(p, DocumentStart);
+        next!(p, DocumentStart(..));
         next!(p, BlockSequenceStart);
         next!(p, BlockEntry);
         next_scalar!(p, TScalarStyle::Plain, "tok1");

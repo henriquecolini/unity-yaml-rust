@@ -4,6 +4,7 @@ use std::collections::HashMap;
 #[derive(Clone, Copy, PartialEq, Debug, Eq)]
 enum State {
     StreamStart,
+    Directive,
     ImplicitDocumentStart,
     DocumentStart,
     DocumentContent,
@@ -37,7 +38,7 @@ pub enum Event {
     Nothing,
     StreamStart,
     StreamEnd,
-    DocumentStart,
+    DocumentStart(u64, u64),
     DocumentEnd,
     /// Refer to an anchor ID
     Alias(usize),
@@ -194,6 +195,10 @@ impl<T: Iterator<Item = char>> Parser<T> {
                 recv.on_event(ev, mark);
                 return Ok(());
             }
+            if let Event::Line(_) = ev {
+                recv.on_event(ev, mark);
+                continue;
+            }
             // clear anchors before a new document
             self.anchors.clear();
             self.load_document(ev, mark, recv)?;
@@ -210,7 +215,7 @@ impl<T: Iterator<Item = char>> Parser<T> {
         mark: Marker,
         recv: &mut R,
     ) -> Result<(), ScanError> {
-        assert_eq!(first_ev, Event::DocumentStart);
+        // assert_eq!(first_ev, Event::DocumentStart);
         recv.on_event(first_ev, mark);
 
         let (ev, mark) = self.next()?;
@@ -288,7 +293,7 @@ impl<T: Iterator<Item = char>> Parser<T> {
         // println!("cur_state {:?}, next tok: {:?}", self.state, next_tok);
         match self.state {
             State::StreamStart => self.stream_start(),
-
+            State::Directive => self.directive(),
             State::ImplicitDocumentStart => self.document_start(true),
             State::DocumentStart => self.document_start(false),
             State::DocumentContent => self.document_content(),
@@ -347,21 +352,48 @@ impl<T: Iterator<Item = char>> Parser<T> {
                 self.skip();
                 Ok((Event::StreamEnd, mark))
             }
-            Token(_, TokenType::VersionDirective(..))
+            Token(_, TokenType::VersionDirective(..)) 
             | Token(_, TokenType::TagDirective(..))
-            | Token(_, TokenType::DocumentStart) => {
+            | Token(_, TokenType::DocumentStart(..)) => {
                 // explicit document
                 self._explicit_document_start()
             }
-            Token(mark, _) if implicit => {
+            Token(mark, ref t) if implicit => {
+                println!("t:{:?}", t);
                 self.parser_process_directives()?;
                 self.push_state(State::DocumentEnd);
                 self.state = State::BlockNode;
-                Ok((Event::DocumentStart, mark))
+                Ok((Event::DocumentStart(0,0), mark))
             }
             _ => {
                 // explicit document
                 self._explicit_document_start()
+            }
+        }
+    }
+
+    fn directive(&mut self) -> ParseResult {
+        match *self.peek_token()? {
+            Token(mark, TokenType::VersionDirective(major, minor)) => {
+                self.skip();
+                Ok((Event::Line(format!("%YAML {}.{}", major, minor)), mark))
+            }
+            Token(mark, TokenType::TagDirective(ref handle, ref prefix)) => {
+                let tag = format!("%TAG {} {}", handle, prefix);
+                self.skip();
+                Ok((Event::Line(tag), mark))
+            }
+            Token(mark, TokenType::DocumentStart(cid, oid)) => {
+                // explicit document
+                println!("tt:{:?}, {:?}", cid, oid);
+                self.state = State::ImplicitDocumentStart;
+                self.skip();
+                Ok((Event::DocumentStart(cid, oid), mark))
+            },
+            Token(mark, _) => {
+                self.state = State::ImplicitDocumentStart;
+                self.skip();
+                Ok((Event::StreamStart, mark))
             }
         }
     }
@@ -375,9 +407,11 @@ impl<T: Iterator<Item = char>> Parser<T> {
                     //    return Err(ScanError::new(tok.0,
                     //        "found incompatible YAML document"));
                     //}
+                    println!("versionDirective");
                 }
                 TokenType::TagDirective(..) => {
                     // TODO add tag directive
+                    println!("tagDirective");
                 }
                 _ => break,
             }
@@ -388,13 +422,22 @@ impl<T: Iterator<Item = char>> Parser<T> {
     }
 
     fn _explicit_document_start(&mut self) -> ParseResult {
-        self.parser_process_directives()?;
+        // self.parser_process_directives()?;
         match *self.peek_token()? {
-            Token(mark, TokenType::DocumentStart) => {
+            Token(mark, TokenType::VersionDirective(major, minor)) => {
+                self.skip();
+                Ok((Event::Line(format!("%YAML {}.{}", major, minor)), mark))
+            }
+            Token(mark, TokenType::TagDirective(ref handle, ref prefix)) => {
+                let tag = format!("%TAG {} {}", handle, prefix);
+                self.skip();
+                Ok((Event::Line(tag), mark))
+            }
+            Token(mark, TokenType::DocumentStart(cid, oid)) => {
                 self.push_state(State::DocumentEnd);
                 self.state = State::DocumentContent;
                 self.skip();
-                Ok((Event::DocumentStart, mark))
+                Ok((Event::DocumentStart(cid, oid), mark))
             }
             Token(mark, _) => Err(ScanError::new(
                 mark,
@@ -407,7 +450,7 @@ impl<T: Iterator<Item = char>> Parser<T> {
         match *self.peek_token()? {
             Token(mark, TokenType::VersionDirective(..))
             | Token(mark, TokenType::TagDirective(..))
-            | Token(mark, TokenType::DocumentStart)
+            | Token(mark, TokenType::DocumentStart(..))
             | Token(mark, TokenType::DocumentEnd)
             | Token(mark, TokenType::StreamEnd) => {
                 self.pop_state();
