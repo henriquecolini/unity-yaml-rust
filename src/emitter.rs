@@ -132,7 +132,7 @@ impl<'a> YamlEmitter<'a> {
 
     pub fn dump(&mut self, doc: &Yaml) -> EmitResult {
         // write DocumentStart
-        writeln!(self.writer, "---")?;
+        // writeln!(self.writer, "---")?;
         self.level = -1;
         self.emit_node(doc)
     }
@@ -179,6 +179,10 @@ impl<'a> YamlEmitter<'a> {
             }
             Yaml::Null | Yaml::BadValue => {
                 write!(self.writer, "~")?;
+                Ok(())
+            }
+            Yaml::Original(ref v) => {
+                writeln!(self.writer, "{}", v)?;
                 Ok(())
             }
             // XXX(chenyh) Alias

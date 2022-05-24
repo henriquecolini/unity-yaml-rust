@@ -41,7 +41,7 @@ pub enum Yaml {
     /// YAML hash, can be accessed as a `LinkedHashMap`.
     ///
     /// Insertion order will match the order of insertion into the map.
-    Hash(self::Hash),
+    Hash((self::Hash, bool)),
     /// Alias, not fully supported yet.
     Alias(usize),
     /// YAML null, e.g. `null` or `~`.
@@ -50,6 +50,9 @@ pub enum Yaml {
     /// simplifies error handling in the calling code. Invalid type conversion also
     /// returns `BadValue`.
     BadValue,
+
+    /// Original content.
+    Original(string::String),
 }
 
 pub type Array = Vec<Yaml>;
@@ -80,11 +83,11 @@ impl MarkedEventReceiver for YamlLoader {
         println!("EV {:?}", ev);
         match ev {
             Event::Line(content) => {
-                self.docs.push(Yaml::String(content))
+                self.docs.push(Yaml::Original(content))
             }
             Event::DocumentStart(cid, oid) => {
                 // do nothing
-                self.docs.push(Yaml::String(format!("--- !u!{} &{}", cid, oid)))
+                self.docs.push(Yaml::Original(format!("--- !u!{} &{}", cid, oid)))
             }
             Event::DocumentEnd => {
                 match self.doc_stack.len() {
@@ -101,8 +104,8 @@ impl MarkedEventReceiver for YamlLoader {
                 let node = self.doc_stack.pop().unwrap();
                 self.insert_new_node(node);
             }
-            Event::MappingStart(aid) => {
-                self.doc_stack.push((Yaml::Hash(Hash::new()), aid));
+            Event::MappingStart(aid, block) => {
+                self.doc_stack.push((Yaml::Hash((Hash::new())), aid));
                 self.key_stack.push(Yaml::BadValue);
             }
             Event::MappingEnd => {

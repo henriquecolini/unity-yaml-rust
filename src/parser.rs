@@ -48,7 +48,7 @@ pub enum Event {
     SequenceStart(usize),
     SequenceEnd,
     /// Anchor ID
-    MappingStart(usize),
+    MappingStart(usize, bool),
     MappingEnd,
 
     Line(String),
@@ -169,7 +169,7 @@ impl<T: Iterator<Item = char>> Parser<T> {
             return Ok((Event::StreamEnd, self.scanner.mark()));
         }
         let (ev, mark) = self.state_machine()?;
-        println!("EV {:?}", ev);
+        // println!("EV {:?}", ev);
         Ok((ev, mark))
     }
 
@@ -244,7 +244,7 @@ impl<T: Iterator<Item = char>> Parser<T> {
                 recv.on_event(first_ev, mark);
                 self.load_sequence(recv)
             }
-            Event::MappingStart(_) => {
+            Event::MappingStart(_,_) => {
                 recv.on_event(first_ev, mark);
                 self.load_mapping(recv)
             }
@@ -558,7 +558,7 @@ impl<T: Iterator<Item = char>> Parser<T> {
             }
             Token(mark, TokenType::FlowMappingStart) => {
                 self.state = State::FlowMappingFirstKey;
-                Ok((Event::MappingStart(anchor_id), mark))
+                Ok((Event::MappingStart(anchor_id, false), mark))
             }
             Token(mark, TokenType::BlockSequenceStart) if block => {
                 self.state = State::BlockSequenceFirstEntry;
@@ -566,7 +566,7 @@ impl<T: Iterator<Item = char>> Parser<T> {
             }
             Token(mark, TokenType::BlockMappingStart) if block => {
                 self.state = State::BlockMappingFirstKey;
-                Ok((Event::MappingStart(anchor_id), mark))
+                Ok((Event::MappingStart(anchor_id, true), mark))
             }
             // ex 7.2, an empty scalar can follow a secondary tag
             Token(mark, _) if tag.is_some() || anchor_id > 0 => {
@@ -763,7 +763,7 @@ impl<T: Iterator<Item = char>> Parser<T> {
             Token(mark, TokenType::Key) => {
                 self.state = State::FlowSequenceEntryMappingKey;
                 self.skip();
-                Ok((Event::MappingStart(0), mark))
+                Ok((Event::MappingStart(0, false), mark))
             }
             _ => {
                 self.push_state(State::FlowSequenceEntry);

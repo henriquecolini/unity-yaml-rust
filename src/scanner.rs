@@ -363,9 +363,7 @@ impl<T: Iterator<Item = char>> Scanner<T> {
             && self.buffer[2] == '-'
             && is_blankz(self.buffer[3])
         {
-            
-            self.fetch_document_start()?;
-            return Ok(());
+            return self.fetch_document_start();
         }
 
         if self.mark.col == 0
@@ -1115,12 +1113,6 @@ impl<T: Iterator<Item = char>> Scanner<T> {
             self.skip();
             self.lookahead(1);
         }
-        while is_blank(self.ch()) {
-            self.skip();
-            self.lookahead(1);
-        }
-        self.skip_line();
-
 
         self.tokens.push_back(Token(mark, TokenType::DocumentStart(class_id, object_id)));
         Ok(())

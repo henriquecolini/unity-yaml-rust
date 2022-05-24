@@ -2,7 +2,7 @@
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
-use unity_yaml_rust::yaml;
+use unity_yaml_rust::{yaml, YamlEmitter};
 
 fn print_indent(indent: usize) {
     for _ in 0..indent {
@@ -43,4 +43,12 @@ fn main() {
         println!("---");
         dump_node(doc, 0);
     }
+    let mut out_str = String::new();
+    let mut emitter = YamlEmitter::new(&mut out_str);
+    for doc in &docs {
+        emitter.dump(doc).unwrap();
+    }
+    let mut f = File::create("./out.yml").unwrap();
+    f.write_all(out_str.as_bytes()).unwrap();
+
 }
