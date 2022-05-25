@@ -1,10 +1,10 @@
 [package]
 name = "unity-yaml-rust"
-version = "0.0.1" # remember to update html_root_url
+version = "0.1.0" # remember to update html_root_url
 authors = ["XMXu <xxm0211@gmail.com>"]
-documentation = "https://docs.rs/yaml-rust"
+# documentation = "https://docs.rs/yaml-rust"
 license = "MIT/Apache-2.0"
-description = "The missing YAML 1.2 parser for rust"
+description = "Unity YAML parser"
 repository = "https://github.com/xmxu/unity-yaml-rust"
 readme = "README.md"
 edition = "2021"

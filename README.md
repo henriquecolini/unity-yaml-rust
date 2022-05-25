@@ -1,16 +1,9 @@
 # unity-yaml-rust
 
-The missing YAML 1.2 implementation for Rust.
+`unity-yaml-rust` is a pure Rust YAML parser for Unity.
 
-[![Travis](https://travis-ci.org/chyh1990/yaml-rust.svg?branch=master)](https://travis-ci.org/chyh1990/yaml-rust)
-[![AppVeyor](https://ci.appveyor.com/api/projects/status/scf47535ckp4ylg4?svg=true)](https://ci.appveyor.com/project/chyh1990/yaml-rust)
-[![crates.io](https://img.shields.io/crates/v/yaml-rust.svg)](https://crates.io/crates/yaml-rust)
-[![docs.rs](https://img.shields.io/badge/api-rustdoc-blue.svg)](https://docs.rs/yaml-rust)
+Add Unity YAML spec and mutable access Base on [yaml-rust](https://github.com/chyh1990/yaml-rust) 
 
-`unity-yaml-rust` is a pure Rust YAML 1.2 implementation for Unity,
-which enjoys the memory safety
-property and other benefits from the Rust language.
-The parser is heavily influenced by `libyaml` and `yaml-cpp`.
 
 ## Quick Start
 
@@ -18,87 +11,104 @@ Add the following to the Cargo.toml of your project:
 
 ```toml
 [dependencies]
-yaml-rust = "0.4"
+unity-yaml-rust = "0.1"
 ```
 
 Use `yaml::YamlLoader` to load the YAML documents and access it
 as Vec/HashMap:
 
 ```rust
-use yaml_rust::{YamlLoader, YamlEmitter};
+use unity_yaml_rust::{yaml::YamlLoader, emmitter::YamlEmitter};
 
 fn main() {
     let s =
-"
-foo:
-    - list1
-    - list2
-bar:
-    - 1
-    - 2.0
-";
-    let docs = YamlLoader::load_from_str(s).unwrap();
+r#"
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!687078895 &4343727234628468602
+SpriteAtlas:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: atlas_launch
+  m_EditorData:
+    serializedVersion: 2
+    textureSettings:
+      serializedVersion: 2
+      anisoLevel: 1
+      compressionQuality: 50
+      maxTextureSize: 2048
+      textureCompression: 0
+      filterMode: 1
+      generateMipMaps: 0
+      readable: 0
+      crunchedCompression: 0
+      sRGB: 1
+    platformSettings: []
+    packingSettings:
+      serializedVersion: 2
+      padding: 4
+      blockOffset: 1
+      allowAlphaSplitting: 0
+      enableRotation: 0
+      enableTightPacking: 0
+    variantMultiplier: 1
+    packables:
+    - {fileID: 102900000, guid: c5a32d8209c314631bad292a32582dfc, type: 3}
+    bindAsDefault: 1
+  m_MasterAtlas: {fileID: 0}
+  m_PackedSprites:
+  - {fileID: 21300000, guid: 3083aff0bd42a4268a9cfe6e564ab247, type: 3}
+  - {fileID: 21300000, guid: 054656e6c52c2425eb7c5ec764d03587, type: 3}
+  - {fileID: 21300000, guid: 55aba929877c26747acf9ad10ee7989c, type: 3}
+  m_PackedSpriteNamesToIndex:
+  - login_ic_logo
+  - launch_icon_service
+  - login_ic_logo_bak1
+  m_Tag: atlas_launch
+  m_IsVariant: 0
+"#;
+    let mut docs = YamlLoader::load_from_str(s).unwrap();
 
     // Multi document support, doc is a yaml::Yaml
-    let doc = &docs[0];
+    for doc in docs.iter_mut() {
+        // Debug support
+        println!("{:?}", doc);
 
-    // Debug support
-    println!("{:?}", doc);
+        if !matches!(doc, Yaml::Original(_)) {
+            //IndexMut
+            let sprite_atlas = &mut doc["SpriteAtlas"];
+            
+            assert_eq!(sprite_atlas["m_ObjectHideFlags"].as_i64(), Some(0i64));
+            assert!(sprite_atlas["m_ObjectHideFlags"].replace_i64(3));
+            assert_eq!(sprite_atlas["m_ObjectHideFlags"].as_i64(), Some(3i64));
+            
+            sprite_atlas["m_Name"].replace_string("launch".to_string());
+            assert_eq!(sprite_atlas["m_Name"].as_str(), Some("launch"));
 
-    // Index access for map & array
-    assert_eq!(doc["foo"][0].as_str().unwrap(), "list1");
-    assert_eq!(doc["bar"][1].as_f64().unwrap(), 2.0);
+            sprite_atlas.insert("custom", Yaml::Boolean(true));
+            assert_eq!(sprite_atlas["custom"].as_bool(), Some(true));
 
-    // Chained key/array access is checked and won't panic,
-    // return BadValue if they are not exist.
-    assert!(doc["INVALID_KEY"][100].is_badvalue());
+            sprite_atlas.remove("m_PackedSprites");
+            assert!(sprite_atlas["m_PackedSprites"].is_badvalue());
 
-    // Dump the YAML object
-    let mut out_str = String::new();
-    {
-        let mut emitter = YamlEmitter::new(&mut out_str);
-        emitter.dump(doc).unwrap(); // dump the YAML object to a String
+            sprite_atlas["m_EditorData"]["packables"].remove_at(0);
+            sprite_atlas["m_EditorData"]["packables"].push(Yaml::String("ppp".to_string()));
+            sprite_atlas["m_MasterAtlas"].insert("plus", Yaml::Boolean(false));
+            sprite_atlas["m_MasterAtlas"].remove("fileID");
+        }
+
+        // Dump the YAML object
+        let mut out_str = String::new();
+        {
+            let mut emitter = YamlEmitter::new(&mut out_str);
+            emitter.dump(doc).unwrap(); // dump the YAML object to a String
+        }
+        println!("{}", out_str);
     }
-    println!("{}", out_str);
 }
 ```
-
-Note that `yaml_rust::Yaml` implements `Index<&'a str>` & `Index<usize>`:
-
-* `Index<usize>` assumes the container is an Array
-* `Index<&'a str>` assumes the container is a string to value Map
-* otherwise, `Yaml::BadValue` is returned
-
-If your document does not conform to this convention (e.g. map with
-complex type key), you can use the `Yaml::as_XXX` family API to access your
-documents.
-
-## Features
-
-* Pure Rust
-* Ruby-like Array/Hash access API
-* Low-level YAML events emission
-
-## Specification Compliance
-
-This implementation aims to provide YAML parser fully compatible with
-the YAML 1.2 specification. The parser can correctly parse almost all
-examples in the specification, except for the following known bugs:
-
-* Empty plain scalar in certain contexts
-
-However, the widely used library `libyaml` also fails to parse these examples,
-so it may not be a huge problem for most users.
-
-## Goals
-
-* Encoder
-* Tag directive
-* Alias while deserialization
-
-## Minimum Rust version policy
-
-This crate's minimum supported `rustc` version is 1.31 (released with Rust 2018, after v0.4.3), as this is the currently known minimum version for [`regex`](https://crates.io/crates/regex#minimum-rust-version-policy) as well.
 
 ## License
 
