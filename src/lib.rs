@@ -1,16 +1,16 @@
 // Copyright 2015, Yuheng Chen. See the LICENSE file at the top-level
 // directory of this distribution.
 
-//! YAML 1.2 implementation in pure Rust.
+//! Unity YAML parser.
 //!
 //! # Usage
 //!
-//! This crate is [on github](https://github.com/chyh1990/yaml-rust) and can be
-//! used by adding `yaml-rust` to the dependencies in your project's `Cargo.toml`.
+//! This crate is [on github](https://github.com/xmxu/unity-yaml-rust) fork from [yaml-rust](https://github.com/chyh1990/yaml-rust) and can be
+//! used by adding `unity-yaml-rust` to the dependencies in your project's `Cargo.toml`.
 //!
 //! ```toml
 //! [dependencies]
-//! yaml-rust = "0.4"
+//! unity-yaml-rust = "0.1"
 //! ```
 //!
 //! And this in your crate root:
@@ -21,7 +21,7 @@
 //! # Examples
 //!
 //! ```
-//! use unity_yaml_rust::{YamlLoader, YamlEmitter};
+//! use unity_yaml_rust::{yaml::YamlLoader, emitter::YamlEmitter};
 //!
 //! let docs = YamlLoader::load_from_str("[1, 2, 3]").unwrap();
 //! let doc = &docs[0]; // select the first document
@@ -33,7 +33,7 @@
 //!
 //! ```
 
-#![doc(html_root_url = "https://docs.rs/yaml-rust/0.4.5")]
+#![doc(html_root_url = "https://docs.rs/unity-yaml-rust/0.1.0")]
 #![cfg_attr(feature = "cargo-clippy", allow(renamed_and_removed_lints))]
 #![cfg_attr(
     feature = "cargo-clippy",

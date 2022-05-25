@@ -2,7 +2,7 @@
 name = "unity-yaml-rust"
 version = "0.1.0" # remember to update html_root_url
 authors = ["XMXu <xxm0211@gmail.com>"]
-# documentation = "https://docs.rs/yaml-rust"
+documentation = "https://docs.rs/unity-yaml-rust"
 license = "MIT/Apache-2.0"
 description = "Unity YAML parser"
 repository = "https://github.com/xmxu/unity-yaml-rust"
