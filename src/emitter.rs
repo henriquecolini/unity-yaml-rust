@@ -34,7 +34,7 @@ pub struct YamlEmitter<'a> {
     writer: &'a mut dyn fmt::Write,
     best_indent: usize,
     compact: bool,
-
+    bad_value: Option<&'a str>,
     level: isize,
     written: bool,
 }
@@ -112,6 +112,7 @@ impl<'a> YamlEmitter<'a> {
             compact: true,
             level: -1,
             written: false,
+            bad_value: None,
         }
     }
 
@@ -132,9 +133,12 @@ impl<'a> YamlEmitter<'a> {
         self.compact
     }
 
+    /// Set description for Null and BadValue
+    pub fn bad_value(&mut self, value: &'a str) {
+        self.bad_value = Some(value);
+    }
+
     pub fn dump(&mut self, doc: &Yaml) -> EmitResult {
-        // write DocumentStart
-        // writeln!(self.writer, "---")?;
         if self.written {
             writeln!(self.writer)?;
         }
@@ -185,7 +189,7 @@ impl<'a> YamlEmitter<'a> {
                 Ok(())
             }
             Yaml::Null | Yaml::BadValue => {
-                write!(self.writer, "~")?;
+                write!(self.writer, "{}", self.bad_value.unwrap_or(""))?;
                 Ok(())
             }
             Yaml::Original(ref v) => {
@@ -220,6 +224,9 @@ impl<'a> YamlEmitter<'a> {
             self.writer.write_str("{}")?;
         } else {
             self.level += 1;
+            if !h.block {
+                write!(self.writer, "{{")?;
+            }
             for (cnt, (k, v)) in h.iter().enumerate() {
                 let complex_key = matches!(*k, Yaml::Hash(_) | Yaml::Array(_));
                 if cnt > 0 {
@@ -245,6 +252,9 @@ impl<'a> YamlEmitter<'a> {
                     self.emit_val(false, v)?;
                 }
             }
+            if !h.block {
+                write!(self.writer, "}}")?;
+            }
             self.level -= 1;
         }
         Ok(())
@@ -268,7 +278,7 @@ impl<'a> YamlEmitter<'a> {
                 self.emit_array(v)
             }
             Yaml::Hash(ref h) => {
-                inline = !h.block;
+                inline = inline || !h.block;
                 if (inline && self.compact) || h.is_empty() {
                     write!(self.writer, " ")?;
                 } else {
@@ -277,14 +287,7 @@ impl<'a> YamlEmitter<'a> {
                     self.write_indent()?;
                     self.level -= 1;
                 }
-                if !h.block {
-                    write!(self.writer, "{{")?;
-                }
-                self.emit_hash(h)?;
-                if !h.block {
-                    write!(self.writer, "}}")?;
-                }
-                Ok(())
+                self.emit_hash(h)
             }
             _ => {
                 write!(self.writer, " ")?;

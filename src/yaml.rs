@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::f64;
 use std::i64;
 use std::mem;
-use std::ops::Index;
+use std::ops::{Index, IndexMut};
 use std::string;
 use std::vec;
 
@@ -81,6 +81,14 @@ impl Hash {
         self.map.get(k)
     }
 
+    pub fn get_mut(&mut self, k: &Yaml) -> Option<&mut Yaml> {
+        self.map.get_mut(k)
+    }
+
+    pub fn remove(&mut self, k: &Yaml) -> Option<Yaml> {
+        self.map.remove(k)
+    }
+
     pub fn is_empty(&self) -> bool {
         self.map.is_empty()
     }
@@ -115,14 +123,16 @@ pub struct YamlLoader {
 
 impl MarkedEventReceiver for YamlLoader {
     fn on_event(&mut self, ev: Event, _: Marker) {
-        println!("EV {:?}", ev);
+        // println!("EV {:?}", ev);
         match ev {
             Event::Line(content) => {
                 self.docs.push(Yaml::Original(content))
             }
             Event::DocumentStart(cid, oid) => {
                 // do nothing
-                self.docs.push(Yaml::Original(format!("--- !u!{} &{}", cid, oid)))
+                if cid > 0 && oid > 0 {
+                    self.docs.push(Yaml::Original(format!("--- !u!{} &{}", cid, oid)))
+                }
             }
             Event::DocumentEnd => {
                 match self.doc_stack.len() {
@@ -263,6 +273,89 @@ pub fn $name(&self) -> Option<$t> {
     );
 );
 
+macro_rules! define_as_mut_ref (
+    ($name:ident, $t:ty, $yt:ident) => (
+pub fn $name(&mut self) -> Option<$t> {
+    match *self {
+        Yaml::$yt(ref mut v) => Some(v),
+        _ => None
+    }
+}
+    );
+);
+
+macro_rules! define_replace (
+    ($name:ident, $t:ty, $yt:ident) => (
+pub fn $name(&mut self, value: $t) -> bool {
+    match *self {
+        Yaml::$yt(ref mut v) => {
+            *v = value;
+            true
+        },
+        _ => false
+    }
+}
+    );
+);
+
+macro_rules! define_push_array (
+    ($name:ident) => (
+pub fn $name(&mut self, value: Yaml) -> bool {
+    match *self {
+        Yaml::Array(ref mut arr) => {
+            arr.push(value);
+            true
+        }
+        _ => false
+    }
+}
+    );
+);
+
+macro_rules! define_insert_hash (
+    ($name:ident) => (
+pub fn $name(&mut self, key: &str, value: Yaml) -> bool {
+    match *self {
+        Yaml::Hash(ref mut h) => {
+            h.insert(Yaml::String(key.to_owned()), value);
+            true
+        }
+        _ => false
+    }
+}
+    );
+);
+
+macro_rules! define_remove_hash (
+    ($name:ident) => (
+pub fn $name(&mut self, key: &str) -> Option<Yaml> {
+    match *self {
+        Yaml::Hash(ref mut h) => {
+            h.remove(&Yaml::String(key.to_owned()))
+        }
+        _ => None
+    }
+}
+    );
+);
+
+macro_rules! define_remove_array (
+    ($name:ident) => (
+pub fn $name(&mut self, idx: usize) -> Option<Yaml> {
+    match *self {
+        Yaml::Array(ref mut arr) => {
+            if idx < arr.len() {
+                Some(arr.remove(idx))
+            } else {
+                None
+            }
+        }
+        _ => None
+    }
+}
+    );
+);
+
 macro_rules! define_into (
     ($name:ident, $t:ty, $yt:ident) => (
 pub fn $name(self) -> Option<$t> {
@@ -281,6 +374,19 @@ impl Yaml {
     define_as_ref!(as_str, &str, String);
     define_as_ref!(as_hash, &Hash, Hash);
     define_as_ref!(as_vec, &Array, Array);
+
+    define_as_mut_ref!(as_mut_hash, &mut Hash, Hash);
+    define_as_mut_ref!(as_mut_vec, &mut Array, Array);
+
+    define_replace!(replace_bool, bool, Boolean);
+    define_replace!(replace_i64, i64, Integer);
+    define_replace!(replace_string, String, String);
+    
+    define_push_array!(push);
+    define_insert_hash!(insert);
+    define_remove_hash!(remove);
+    define_remove_array!(remove_at);
+    
 
     define_into!(into_bool, bool, Boolean);
     define_into!(into_i64, i64, Integer);
@@ -348,22 +454,28 @@ impl Yaml {
 }
 
 static BAD_VALUE: Yaml = Yaml::BadValue;
+static mut MUT_BAD_VALUE: Yaml = Yaml::BadValue;
 impl<'a> Index<&'a str> for Yaml {
     type Output = Yaml;
 
     fn index(&self, idx: &'a str) -> &Yaml {
         let key = Yaml::String(idx.to_owned());
-        match self.as_hash() {
-            Some(h) => h.get(&key).unwrap_or(&BAD_VALUE),
-            None => &BAD_VALUE,
-        }
+        self.as_hash().and_then(|h| h.get(&key)).unwrap_or(&BAD_VALUE)
+    }
+}
+
+impl<'a> IndexMut<&'a str> for Yaml {
+
+    fn index_mut(&mut self, idx: &'a str) -> &mut Yaml {
+        let key = Yaml::String(idx.to_owned());
+        self.as_mut_hash().and_then(|h| h.get_mut(&key)).unwrap_or(unsafe { &mut MUT_BAD_VALUE })
     }
 }
 
 impl Index<usize> for Yaml {
     type Output = Yaml;
 
-    fn index(&self, idx: usize) -> &Yaml {
+    fn index(&self, idx: usize) -> &Self::Output {
         if let Some(v) = self.as_vec() {
             v.get(idx).unwrap_or(&BAD_VALUE)
         } else if let Some(v) = self.as_hash() {
@@ -372,6 +484,42 @@ impl Index<usize> for Yaml {
         } else {
             &BAD_VALUE
         }
+    }
+}
+
+impl IndexMut<usize> for Yaml {
+    
+    fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
+        match self.is_array() {
+            true => {
+                self.as_mut_vec().and_then(|v| 
+                    v.get_mut(idx)).unwrap_or(unsafe {
+                    &mut MUT_BAD_VALUE
+                })
+            },
+            false => {
+                self.as_mut_hash().and_then(|v| {
+                    let key = Yaml::Integer(idx as i64);
+                    v.get_mut(&key)
+                }).unwrap_or(unsafe {
+                    &mut MUT_BAD_VALUE   
+                })
+            },
+        }
+        // if let Some(v) = self.as_mut_vec() {
+        //     v.get_mut(idx).unwrap_or(unsafe {
+        //         &mut MUT_BAD_VALUE   
+        //     })
+        // } else if let Some(v) = self.as_mut_hash() {
+        //     let key = Yaml::Integer(idx as i64);
+        //     v.get_mut(&key).unwrap_or(unsafe {
+        //         &mut MUT_BAD_VALUE
+        //     })
+        // } else {
+        //     unsafe {
+        //         &mut MUT_BAD_VALUE
+        //     }
+        // }
     }
 }
 

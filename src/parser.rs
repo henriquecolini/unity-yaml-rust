@@ -356,8 +356,7 @@ impl<T: Iterator<Item = char>> Parser<T> {
                 // explicit document
                 self._explicit_document_start()
             }
-            Token(mark, ref t) if implicit => {
-                println!("t:{:?}", t);
+            Token(mark, _) if implicit => {
                 self.parser_process_directives()?;
                 self.push_state(State::DocumentEnd);
                 self.state = State::BlockNode;
