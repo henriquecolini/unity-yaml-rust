@@ -247,8 +247,6 @@ impl<'a> YamlEmitter<'a> {
                 } else {
                     self.emit_node(k)?;
                     write!(self.writer, ":")?;
-                    // let inline = h.block && matches!(*k, Yaml::Hash(_));
-                    // write!(self.writer, "{}", inline)?;
                     self.emit_val(false, v)?;
                 }
             }
