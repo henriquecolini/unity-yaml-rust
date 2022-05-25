@@ -298,64 +298,6 @@ pub fn $name(&mut self, value: $t) -> bool {
     );
 );
 
-macro_rules! define_push_array (
-    ($name:ident) => (
-pub fn $name(&mut self, value: Yaml) -> bool {
-    match *self {
-        Yaml::Array(ref mut arr) => {
-            arr.push(value);
-            true
-        }
-        _ => false
-    }
-}
-    );
-);
-
-macro_rules! define_insert_hash (
-    ($name:ident) => (
-pub fn $name(&mut self, key: &str, value: Yaml) -> bool {
-    match *self {
-        Yaml::Hash(ref mut h) => {
-            h.insert(Yaml::String(key.to_owned()), value);
-            true
-        }
-        _ => false
-    }
-}
-    );
-);
-
-macro_rules! define_remove_hash (
-    ($name:ident) => (
-pub fn $name(&mut self, key: &str) -> Option<Yaml> {
-    match *self {
-        Yaml::Hash(ref mut h) => {
-            h.remove(&Yaml::String(key.to_owned()))
-        }
-        _ => None
-    }
-}
-    );
-);
-
-macro_rules! define_remove_array (
-    ($name:ident) => (
-pub fn $name(&mut self, idx: usize) -> Option<Yaml> {
-    match *self {
-        Yaml::Array(ref mut arr) => {
-            if idx < arr.len() {
-                Some(arr.remove(idx))
-            } else {
-                None
-            }
-        }
-        _ => None
-    }
-}
-    );
-);
-
 macro_rules! define_into (
     ($name:ident, $t:ty, $yt:ident) => (
 pub fn $name(self) -> Option<$t> {
@@ -382,12 +324,6 @@ impl Yaml {
     define_replace!(replace_i64, i64, Integer);
     define_replace!(replace_string, String, String);
     
-    define_push_array!(push);
-    define_insert_hash!(insert);
-    define_remove_hash!(remove);
-    define_remove_array!(remove_at);
-    
-
     define_into!(into_bool, bool, Boolean);
     define_into!(into_i64, i64, Integer);
     define_into!(into_string, String, String);
@@ -419,6 +355,53 @@ impl Yaml {
             _ => None,
         }
     }
+
+    /// try push yaml into Yaml::Array
+    pub fn push(&mut self, value: Yaml) -> bool {
+        match *self {
+            Yaml::Array(ref mut arr) => {
+                arr.push(value);
+                true
+            }
+            _ => false
+        }
+    }
+
+    /// try insert yaml into Yaml::Hash
+    pub fn insert(&mut self, key: &str, value: Yaml) -> bool {
+        match *self {
+            Yaml::Hash(ref mut h) => {
+                h.insert(Yaml::String(key.to_owned()), value);
+                true
+            }
+            _ => false
+        }
+    }
+
+    /// try remove from Yaml::Hash
+    pub fn remove(&mut self, key: &str) -> Option<Yaml> {
+        match *self {
+            Yaml::Hash(ref mut h) => {
+                h.remove(&Yaml::String(key.to_owned()))
+            }
+            _ => None
+        }
+    }
+
+    /// try remove from Yaml::Array
+    pub fn remove_at(&mut self, idx: usize) -> Option<Yaml> {
+        match *self {
+            Yaml::Array(ref mut arr) => {
+                if idx < arr.len() {
+                    Some(arr.remove(idx))
+                } else {
+                    None
+                }
+            }
+            _ => None
+        }
+    }
+
 }
 
 #[cfg_attr(feature = "cargo-clippy", allow(should_implement_trait))]
