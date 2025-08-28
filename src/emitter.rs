@@ -152,10 +152,9 @@ impl<'a> YamlEmitter<'a> {
         if self.level <= 0 {
             return Ok(());
         }
-        for _ in 0..self.level {
-            for _ in 0..self.best_indent {
-                write!(self.writer, " ")?;
-            }
+        let count = self.level * self.best_indent as isize;
+        for _ in 0..count {
+            write!(self.writer, " ")?;
         }
         Ok(())
     }
@@ -205,7 +204,6 @@ impl<'a> YamlEmitter<'a> {
         if v.is_empty() {
             write!(self.writer, "[]")?;
         } else {
-            self.level += 1;
             for (cnt, x) in v.iter().enumerate() {
                 if cnt > 0 {
                     writeln!(self.writer)?;
@@ -214,7 +212,6 @@ impl<'a> YamlEmitter<'a> {
                 write!(self.writer, "-")?;
                 self.emit_val(true, x)?;
             }
-            self.level -= 1;
         }
         Ok(())
     }
@@ -269,9 +266,7 @@ impl<'a> YamlEmitter<'a> {
                     write!(self.writer, " ")?;
                 } else {
                     writeln!(self.writer)?;
-                    self.level += 1;
                     self.write_indent()?;
-                    self.level -= 1;
                 }
                 self.emit_array(v)
             }
@@ -317,12 +312,13 @@ fn need_quotes(string: &str) -> bool {
     string.is_empty()
         || need_quotes_spaces(string)
         || string.starts_with(|character: char| matches!(character, '&' | '*' | '?' | '|' | '-' | '<' | '>' | '=' | '!' | '%' | '@'))
-        || string.contains(|character: char| matches!(character, ':'
-            | '{'
+        || string.contains(|character: char| matches!(character,
+            //':'
+            '{'
             | '}'
             | '['
             | ']'
-            | ','
+            //| ','
             | '#'
             | '`'
             | '\"'
